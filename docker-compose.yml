@@ -118,6 +118,23 @@ services:
       - microservices-network
     restart: unless-stopped
 
+  react-app:
+    container_name: user-react-app
+    build:
+      context: ./react-app
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"  # Puerto de desarrollo
+    volumes:
+      - ./react-app:/app    # Montar código fuente
+      - /app/node_modules # Volumen separado para dependencias
+    environment:
+      - NODE_ENV=development
+    stdin_open: true  # Habilita interacción con terminal
+    tty: true         # Permite ejecutar comandos en el contenedor  
+    networks:
+      - microservices-network
+
 volumes:
   postgres_auth_data:
   postgres_user_data:
