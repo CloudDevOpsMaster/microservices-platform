@@ -48,11 +48,16 @@ async def login(
     Returns access_token (30min) and refresh_token (7 days)
     """
     try:
-        return await use_case.execute(request)
+        result = await use_case.execute(request)
+        # Publicar evento de forma asíncrona SIN bloquear respuesta
+        return result
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
+        raise HTTPException(status_code=401, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Login failed")
+        # TEMPORAL: ver error real
+        import traceback
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Login failed: {str(e)}")
 
 
 @router.post("/refresh", response_model=LoginResponse)

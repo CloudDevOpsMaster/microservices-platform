@@ -101,4 +101,181 @@ Faltan tests de:
 - `redis_client.py`: 39% → tests de cache
 - `rabbitmq_publisher.py`: 26% → tests de messaging
 
-**Auth Service está funcional y bien testeado.** ¿Implementamos el User Service ahora?
+
+# Por qué dos bases de datos separadas y diferentes políticas de registro
+
+## Separación de Bases de Datos
+
+**Auth Service DB** y **User Service DB** están separadas por:
+
+1. **Bounded Contexts (DDD)**: 
+   - Auth DB: credenciales, tokens, sesiones (contexto de seguridad)
+   - User DB: perfiles, roles, metadata (contexto de negocio)
+
+2. **Independencia de Microservicios**:
+   - Cada servicio es autónomo y deployable independientemente
+   - Fallos aislados (si User Service cae, Auth sigue funcionando)
+   - Escalamiento independiente (Auth puede necesitar más réplicas)
+
+3. **Responsabilidades Únicas**:
+   - Auth Service: **"¿Quién eres y puedes acceder?"**
+   - User Service: **"¿Qué datos tienes y qué puedes hacer?"**
+
+## Diferencia en Políticas de Registro
+
+### `/auth/register` (público)
+```python
+# Auto-registro de usuarios finales
+# NO requiere autenticación
+# Rol por defecto: "user"
+# Uso: sign-up público en la app
+```
+
+**Flujo**:
+1. Usuario se registra → crea credenciales en Auth DB
+2. Auth publica evento `user.created` → RabbitMQ
+3. User Service consume evento → crea perfil en User DB
+
+### `/users` (protegido)
+```python
+# Creación administrativa de usuarios
+# REQUIERE autenticación (JWT)
+# Permite asignar roles personalizados (admin, etc.)
+# Uso: panel de administración
+```
+
+**Flujo**:
+1. Admin autenticado llama endpoint
+2. User Service valida JWT con Auth Service
+3. Crea usuario con rol específico en User DB
+4. Publica evento para sincronizar con Auth DB
+
+## Arquitectura Recomendada
+
+```
+┌─────────────────┐         ┌──────────────────┐
+│  Auth Service   │         │   User Service   │
+│  Port 8001      │         │   Port 8002      │
+├─────────────────┤         ├──────────────────┤
+│ PostgreSQL      │         │ PostgreSQL       │
+│ (credentials)   │         │ (profiles)       │
+│                 │         │                  │
+│ /auth/register  │────────>│ RabbitMQ Event   │
+│ (público)       │         │ (sync profile)   │
+│                 │         │                  │
+│ /auth/login     │<────────│ /users (POST)    │
+│ (valida JWT)    │         │ (requiere admin) │
+└─────────────────┘         └──────────────────┘
+```
+
+## Ventajas del Modelo Actual
+
+- **Seguridad**: Credenciales aisladas de datos de negocio
+- **Flexibilidad**: Diferentes estrategias de autenticación sin tocar User Service
+- **Auditoría**: Separación clara entre accesos y cambios de perfil
+- **Compliance**: Más fácil cumplir GDPR/SOC2 con datos sensibles aislados
+
+
+
+# Flujo para crear el primer Admin
+
+## Opción 1: Script de inicialización (RECOMENDADO)
+
+```bash
+# Crear script: scripts/create_first_admin.py
+```
+
+```python
+import asyncio
+import sys
+sys.path.insert(0, '/app')
+
+from app.infrastructure.database import get_db
+from app.domain.entities.user import User
+from passlib.context import CryptContext
+import uuid
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+async def create_admin():
+    db = next(get_db())
+    
+    # Auth Service - crear credenciales
+    hashed = pwd_context.hash("Admin123456")
+    auth_user = {
+        "id": str(uuid.uuid4()),
+        "email": "admin@toka.com",
+        "hashed_password": hashed,
+        "is_active": True
+    }
+    # Insertar en auth_db.users
+    
+    # User Service - crear perfil
+    user = User(
+        id=auth_user["id"],
+        email="admin@toka.com",
+        full_name="Super Admin",
+        role="admin",
+        is_active=True,
+        is_verified=True
+    )
+    # Insertar en users_db.users
+
+create_admin()
+```
+
+**Ejecutar:**
+```bash
+docker exec -it auth-service python scripts/create_first_admin.py
+```
+
+## Opción 2: SQL directo
+
+```bash
+# En Auth Service DB
+docker exec -it postgres psql -U admin -d auth_db
+
+INSERT INTO users (id, email, hashed_password, is_active) 
+VALUES (
+  'admin-001', 
+  'admin@toka.com',
+  '$2b$12$...', -- generar con bcrypt
+  true
+);
+
+# En User Service DB
+docker exec -it postgres psql -U admin -d users_db
+
+INSERT INTO users (id, email, full_name, role, is_active, is_verified)
+VALUES (
+  'admin',
+  'admin@toka.com', 
+  'Super Admin',
+  'admin',
+  true,
+  true
+);
+```
+
+## Opción 3: Endpoint especial (bootstrap)
+
+Crear endpoint temporal `/auth/bootstrap` que:
+- Solo funciona si no existen usuarios en DB
+- Crea admin en Auth Service
+- Publica evento para User Service
+- Se desactiva automáticamente después
+
+```python
+@router.post("/bootstrap")
+async def bootstrap_admin(db: Session):
+    if db.query(User).count() > 0:
+        raise HTTPException(403, "Sistema ya inicializado")
+    # Crear admin...
+```
+
+**Flujo después del primer admin:**
+1. Admin hace login → obtiene JWT
+2. Admin crea más usuarios vía `/users` (POST)
+3. User Service publica evento
+4. Auth Service crea credenciales
+5. Nuevos usuarios pueden hacer login

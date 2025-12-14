@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { User } from '../types/user';
+import { User, CreateUserRequest } from '../types/user';
 import { userService } from '../services/userService';
 
 interface UserState {
@@ -10,7 +10,7 @@ interface UserState {
   total: number;
   
   fetchUsers: (skip?: number, limit?: number) => Promise<void>;
-  createUser: (userData: Partial<User>) => Promise<void>;
+  createUser: (userData: CreateUserRequest) => Promise<void>;
   updateUser: (id: string, userData: Partial<User>) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
   clearError: () => void;
@@ -36,7 +36,7 @@ export const useUserStore = create<UserState>((set) => ({
     }
   },
 
-  createUser: async (userData: Partial<User>) => {
+  createUser: async (userData: CreateUserRequest) => {
     set({ loading: true, error: null });
     try {
       const newUser = await userService.createUser(userData);

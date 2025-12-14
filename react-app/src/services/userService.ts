@@ -1,12 +1,6 @@
 import axios from 'axios';
-import { User, UserListResponse } from '../types/user';
+import { User, UserListResponse, CreateUserRequest } from '../types/user';
 
-// Opción 1: Usar variable de entorno con fallback
-// const API_URL = typeof window !== 'undefined' && (window as any).ENV?.VITE_API_URL 
-//   ? (window as any).ENV.VITE_API_URL 
-//   : 'http://localhost:8002';
-
-// Opción 2: Configurar directamente (recomendado para desarrollo)
 const API_URL = 'http://localhost:8002';
 
 const api = axios.create({
@@ -38,7 +32,7 @@ export const userService = {
     return data;
   },
 
-  async createUser(userData: Partial<User>): Promise<User> {
+  async createUser(userData: CreateUserRequest): Promise<User> {
     const { data } = await api.post<User>('/users', userData);
     return data;
   },

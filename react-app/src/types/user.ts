@@ -17,3 +17,12 @@ export interface UserListResponse {
   skip: number;
   limit: number;
 }
+
+export interface CreateUserRequest {
+  email: string;
+  full_name: string;
+  password: string;
+  role: 'user' | 'admin' | 'moderator';
+  phone?: string;
+  department?: string;
+}

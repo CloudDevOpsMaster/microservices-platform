@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { GlassCard } from './shared/GlassCard';
 import { AnimatedCounter } from './shared/AnimatedCounter';
+import { UserModal } from './UserModal';
 
 const UserListPage = () => {
   const { 
@@ -15,6 +16,7 @@ const UserListPage = () => {
     error, 
     total, 
     fetchUsers, 
+    createUser,
     deleteUser, 
     clearError 
   } = useUserStore();
@@ -23,6 +25,7 @@ const UserListPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -35,6 +38,10 @@ const UserListPage = () => {
     } catch (err) {
       console.error('Delete failed:', err);
     }
+  };
+
+  const handleCreateUser = async (userData: any) => {
+    await createUser(userData);
   };
 
   const getRoleBadgeColor = (role: string) => {
@@ -108,7 +115,10 @@ const UserListPage = () => {
                 <Download className="w-5 h-5" />
                 Exportar
               </button>
-              <button className="px-6 py-3 bg-gradient-to-r from-red-600 to-orange-500 text-white rounded-2xl hover:shadow-2xl transition-all shadow-lg flex items-center gap-2 font-semibold group">
+              <button 
+                onClick={() => setIsModalOpen(true)}
+                className="px-6 py-3 bg-gradient-to-r from-red-600 to-orange-500 text-white rounded-2xl hover:shadow-2xl transition-all shadow-lg flex items-center gap-2 font-semibold group"
+              >
                 <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform" />
                 Nuevo Usuario
               </button>
@@ -235,6 +245,12 @@ const UserListPage = () => {
             </div>
           </GlassCard>
         )}
+
+        <UserModal 
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSubmit={handleCreateUser}
+        />
 
         <GlassCard className="overflow-hidden relative">
           <div className="overflow-x-auto">
