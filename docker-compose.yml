@@ -76,8 +76,51 @@ services:
       - microservices-network
     restart: unless-stopped
 
+  # PostgreSQL para User Service
+  postgres-user:
+    image: postgres:15-alpine
+    container_name: postgres-user
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+      POSTGRES_DB: users_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_user_data:/var/lib/postgresql/data
+    networks:
+      - microservices-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d users_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # User Service
+  user-service:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    container_name: user-service
+    env_file:
+      - ./user-service/.env
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://admin:admin123@postgres-user:5432/users_db
+      - RABBITMQ_HOST=rabbitmq
+    ports:
+      - "8002:8002"
+    depends_on:
+      postgres-user:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
 volumes:
   postgres_auth_data:
+  postgres_user_data:
 
 networks:
   microservices-network:
