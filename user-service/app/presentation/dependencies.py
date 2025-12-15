@@ -1,100 +1,119 @@
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer
-from typing import Annotated
-from sqlalchemy.ext.asyncio import AsyncSession
-import jwt
+# user-service/app/presentation/dependencies.py
+"""
+Dependency injection for FastAPI routes.
+"""
 
-from app.infrastructure.database.database import Database
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from jose import JWTError, jwt
+import logging
+
+from app.infrastructure.database.connection import DatabaseConnection
 from app.infrastructure.database.user_repository_impl import UserRepositoryImpl
-from app.infrastructure.messaging.rabbitmq_publisher import RabbitMQPublisher
 from app.application.use_cases.create_user_use_case import CreateUserUseCase
 from app.application.use_cases.get_users_use_case import GetUsersUseCase, GetUserByIdUseCase
 from app.application.use_cases.update_user_use_case import UpdateUserUseCase
 from app.application.use_cases.delete_user_use_case import DeleteUserUseCase
-from app.core.config import settings
+from app.core.config import get_settings
 
+logger = logging.getLogger(__name__)
+settings = get_settings()
 security = HTTPBearer()
 
-
-async def get_db_session() -> AsyncSession:
-    """Dependency for database session."""
-    db = Database(settings.DATABASE_URL)
-    async for session in db.get_session():
-        yield session
+# Global db_connection (set from main.py)
+db_connection: DatabaseConnection = None
 
 
-def get_rabbitmq_publisher() -> RabbitMQPublisher:
-    """Dependency for RabbitMQ publisher."""
-    return RabbitMQPublisher(
-        host=settings.RABBITMQ_HOST,
-        port=settings.RABBITMQ_PORT,
-        username=settings.RABBITMQ_USER,
-        password=settings.RABBITMQ_PASS
-    )
+def set_db_connection(conn: DatabaseConnection):
+    """Set global database connection."""
+    global db_connection
+    db_connection = conn
+
+
+def get_db_connection() -> DatabaseConnection:
+    """Get database connection dependency."""
+    if db_connection is None:
+        raise RuntimeError("Database connection not initialized")
+    return db_connection
 
 
 async def get_current_user(
-    token: Annotated[str, Depends(security)]
+    credentials: HTTPAuthorizationCredentials = Depends(security)
 ) -> dict:
-    """Extract and validate JWT token."""
+    """
+    Validate JWT token locally.
+    
+    Args:
+        credentials: Bearer token from request
+        
+    Returns:
+        dict: User data from token
+        
+    Raises:
+        HTTPException: If token is invalid
+    """
+    token = credentials.credentials
+    
     try:
+        # Decode and verify JWT locally
         payload = jwt.decode(
-            token.credentials,
+            token,
             settings.JWT_SECRET,
             algorithms=[settings.JWT_ALGORITHM]
         )
+
+        sub = payload.get("sub")
+        if sub is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authentication credentials"
+            )
+        
         return payload
-    except jwt.ExpiredSignatureError:
+        
+    except JWTError as e:
+        logger.error(f"JWT validation error: {e}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token expired"
-        )
-    except jwt.InvalidTokenError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token"
+            detail="Invalid authentication credentials"
         )
 
 
-# Use Case Dependencies
-async def get_create_user_use_case(
-    session: Annotated[AsyncSession, Depends(get_db_session)],
-    rabbitmq: Annotated[RabbitMQPublisher, Depends(get_rabbitmq_publisher)]
+def get_create_user_use_case(
+    db_conn: DatabaseConnection = Depends(get_db_connection)
 ) -> CreateUserUseCase:
-    """Dependency for CreateUserUseCase."""
-    repository = UserRepositoryImpl(session)
-    return CreateUserUseCase(repository, rabbitmq)
+    """Get CreateUserUseCase with dependencies."""
+    repository = UserRepositoryImpl(db_conn)
+    return CreateUserUseCase(repository)
 
 
-async def get_get_users_use_case(
-    session: Annotated[AsyncSession, Depends(get_db_session)]
+def get_get_users_use_case(
+    db_conn: DatabaseConnection = Depends(get_db_connection)
 ) -> GetUsersUseCase:
-    """Dependency for GetUsersUseCase."""
-    repository = UserRepositoryImpl(session)
+    """Get GetUsersUseCase with dependencies."""
+    repository = UserRepositoryImpl(db_conn)
     return GetUsersUseCase(repository)
 
 
-async def get_get_user_by_id_use_case(
-    session: Annotated[AsyncSession, Depends(get_db_session)]
+def get_get_user_by_id_use_case(
+    db_conn: DatabaseConnection = Depends(get_db_connection)
 ) -> GetUserByIdUseCase:
-    """Dependency for GetUserByIdUseCase."""
-    repository = UserRepositoryImpl(session)
+    """Get GetUserByIdUseCase with dependencies."""
+    repository = UserRepositoryImpl(db_conn)
     return GetUserByIdUseCase(repository)
 
 
-async def get_update_user_use_case(
-    session: Annotated[AsyncSession, Depends(get_db_session)],
-    rabbitmq: Annotated[RabbitMQPublisher, Depends(get_rabbitmq_publisher)]
+def get_update_user_use_case(
+    db_conn: DatabaseConnection = Depends(get_db_connection)
 ) -> UpdateUserUseCase:
-    """Dependency for UpdateUserUseCase."""
-    repository = UserRepositoryImpl(session)
-    return UpdateUserUseCase(repository, rabbitmq)
+    """Get UpdateUserUseCase with dependencies."""
+    repository = UserRepositoryImpl(db_conn)
+    return UpdateUserUseCase(repository)
 
 
-async def get_delete_user_use_case(
-    session: Annotated[AsyncSession, Depends(get_db_session)],
-    rabbitmq: Annotated[RabbitMQPublisher, Depends(get_rabbitmq_publisher)]
+def get_delete_user_use_case(
+    db_conn: DatabaseConnection = Depends(get_db_connection)
 ) -> DeleteUserUseCase:
-    """Dependency for DeleteUserUseCase."""
-    repository = UserRepositoryImpl(session)
-    return DeleteUserUseCase(repository, rabbitmq)
+    """Get DeleteUserUseCase with dependencies."""
+    repository = UserRepositoryImpl(db_conn)
+    return DeleteUserUseCase(repository)

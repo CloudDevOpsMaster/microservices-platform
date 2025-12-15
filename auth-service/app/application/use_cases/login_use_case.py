@@ -66,8 +66,8 @@ class LoginUseCase:
         # Store refresh token in Redis
         await self._store_refresh_token(user.id, refresh_token)
         
-        # Publish login event
-        await self._publish_login_event(user)
+        # Publish login event (SYNC - no await)
+        self._publish_login_event(user)
         
         return LoginResponse(
             access_token=access_token,
@@ -87,7 +87,7 @@ class LoginUseCase:
         """Create JWT access token."""
         expire = datetime.utcnow() + timedelta(minutes=self.access_token_expire_minutes)
         payload = {
-            "user_id": user.id,
+            "sub": user.id,  # ✅ Changed from user_id to sub (JWT standard)
             "email": user.email,
             "role": user.role,
             "exp": expire,
@@ -100,7 +100,7 @@ class LoginUseCase:
         """Create JWT refresh token."""
         expire = datetime.utcnow() + timedelta(days=self.refresh_token_expire_days)
         payload = {
-            "user_id": user.id,
+            "sub": user.id,  # ✅ Changed from user_id to sub (JWT standard)
             "exp": expire,
             "iat": datetime.utcnow(),
             "type": "refresh"
@@ -113,13 +113,17 @@ class LoginUseCase:
         ttl = self.refresh_token_expire_days * 24 * 60 * 60  # seconds
         await self.redis_client.set(key, token, ttl)
     
-    async def _publish_login_event(self, user: User) -> None:
-        """Publish user login event to RabbitMQ."""
-        event = {
-            "event_type": "user.logged_in",
-            "user_id": user.id,
-            "email": user.email,
-            "timestamp": datetime.utcnow().isoformat(),
-            "ip_address": None  # Will be added by controller
-        }
-        await self.rabbitmq_publisher.publish("auth.events", event)
+    def _publish_login_event(self, user: User) -> None:
+        """Publish user login event to RabbitMQ (synchronous)."""
+        try:
+            event = {
+                "event_type": "user.logged_in",
+                "user_id": user.id,
+                "email": user.email,
+                "timestamp": datetime.utcnow().isoformat(),
+                "ip_address": None
+            }
+            # Call publish WITHOUT await (it's synchronous)
+            self.rabbitmq_publisher.publish("user.login", event)
+        except Exception as e:
+            print(f"⚠️ Failed to publish login event: {e}")

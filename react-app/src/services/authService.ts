@@ -12,6 +12,21 @@ export const authService = {
     return data;
   },
 
+  async register(userData: {
+    email: string;
+    full_name: string;
+    password: string;
+    role?: string;
+    phone?: string;
+    department?: string;
+  }): Promise<AuthResponse> {
+    const { data } = await axios.post<AuthResponse>(
+      `${API_URL}/auth/register`,
+      userData
+    );
+    return data;
+  },
+
   async logout(token: string): Promise<void> {
     await axios.post(
       `${API_URL}/auth/logout`,

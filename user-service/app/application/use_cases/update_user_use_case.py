@@ -3,7 +3,6 @@ from datetime import datetime
 from app.domain.entities.user import User
 from app.domain.repositories.user_repository import IUserRepository
 from app.application.dtos.user_dto import UpdateUserRequest, UserResponse
-from app.infrastructure.messaging.rabbitmq_publisher import RabbitMQPublisher
 
 
 class UpdateUserUseCase:
@@ -11,11 +10,9 @@ class UpdateUserUseCase:
     
     def __init__(
         self, 
-        user_repository: IUserRepository,
-        rabbitmq_publisher: RabbitMQPublisher
+        user_repository: IUserRepository
     ):
         self.user_repository = user_repository
-        self.rabbitmq_publisher = rabbitmq_publisher
     
     async def execute(self, user_id: str, request: UpdateUserRequest) -> UserResponse:
         """
@@ -62,25 +59,25 @@ class UpdateUserUseCase:
         # Save changes
         updated_user = await self.user_repository.update(user)
         
-        # Publish event to RabbitMQ
-        try:
-            event_data = {
-                "event_type": "user.updated",
-                "user_id": updated_user.id,
-                "email": updated_user.email,
-                "full_name": updated_user.full_name,
-                "role": updated_user.role,
-                "is_active": updated_user.is_active,
-                "updated_at": updated_user.updated_at.isoformat()
-            }
-            await self.rabbitmq_publisher.publish(
-                exchange="user_events",
-                routing_key="user.updated",
-                message=event_data
-            )
-        except Exception as e:
-            # Log error but don't fail the operation
-            print(f"Failed to publish user.updated event: {e}")
+        # # Publish event to RabbitMQ
+        # try:
+        #     event_data = {
+        #         "event_type": "user.updated",
+        #         "user_id": updated_user.id,
+        #         "email": updated_user.email,
+        #         "full_name": updated_user.full_name,
+        #         "role": updated_user.role,
+        #         "is_active": updated_user.is_active,
+        #         "updated_at": updated_user.updated_at.isoformat()
+        #     }
+        #     await self.rabbitmq_publisher.publish(
+        #         exchange="user_events",
+        #         routing_key="user.updated",
+        #         message=event_data
+        #     )
+        # except Exception as e:
+        #     # Log error but don't fail the operation
+        #     print(f"Failed to publish user.updated event: {e}")
         
         return UserResponse(
             id=updated_user.id,

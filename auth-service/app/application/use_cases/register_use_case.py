@@ -1,5 +1,6 @@
 from datetime import datetime
 from passlib.context import CryptContext
+from typing import Dict, Any
 
 from app.domain.entities.user import User
 from app.domain.repositories.user_repository import IUserRepository
@@ -32,6 +33,9 @@ class RegisterUseCase:
         Raises:
             ValueError: If email already exists
         """
+        # Validate request
+        self._validate_request(request)
+
         # Check if email already exists
         existing_user = await self.user_repository.find_by_email(request.email)
         if existing_user:
@@ -65,12 +69,39 @@ class RegisterUseCase:
         )
     
     async def _publish_user_created_event(self, user: User) -> None:
-        """Publish user created event to RabbitMQ."""
-        event = {
-            "event_type": "user.created",
-            "user_id": user.id,
-            "email": user.email,
-            "full_name": user.full_name,
-            "timestamp": datetime.utcnow().isoformat()
-        }
-        await self.rabbitmq_publisher.publish("auth.events", event)
+        # Publish event to RabbitMQ for User Service
+        try:
+            event_data = {
+                "event_type": "user.created",
+                "timestamp": datetime.utcnow().isoformat(),
+                "data": {
+                    "id": str(user.id),
+                    "email": user.email,
+                    "full_name": user.full_name,
+                    "role": user.role,
+                    "is_active": user.is_active,
+                    "is_verified": user.is_verified,
+                    "created_at": user.created_at.isoformat() if user.created_at else None
+                }
+            }
+            
+            self.rabbitmq_publisher.publish(
+                routing_key="user.created",
+                message=event_data
+            )
+            
+        except Exception as e:
+            print(f"⚠️ Failed to publish event (user already created): {e}")
+            # Don't fail the request, user is already created
+
+    def _validate_request(self, request: RegisterRequest) -> None:
+        """Validate registration request."""
+        if len(request.password) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        
+        if len(request.full_name) < 2:
+            raise ValueError("Full name must be at least 2 characters")
+        
+        # Validate email format (basic check)
+        if "@" not in request.email or "." not in request.email:
+            raise ValueError("Invalid email format")        

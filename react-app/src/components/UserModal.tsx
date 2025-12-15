@@ -1,15 +1,15 @@
 import { useState } from 'react';
 import { X, User, Mail, Lock, Building2, Phone, Shield } from 'lucide-react';
-import { CreateUserRequest } from '../types/user';
+import { authService } from '../services/authService';
 
 interface UserModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (userData: CreateUserRequest) => Promise<void>;
+  onSuccess: () => void;
 }
 
-export const UserModal = ({ isOpen, onClose, onSubmit }: UserModalProps) => {
-  const [formData, setFormData] = useState<CreateUserRequest>({
+export const UserModal = ({ isOpen, onClose, onSuccess }: UserModalProps) => {
+  const [formData, setFormData] = useState({
     email: '',
     full_name: '',
     password: '',
@@ -26,7 +26,9 @@ export const UserModal = ({ isOpen, onClose, onSubmit }: UserModalProps) => {
     setError('');
 
     try {
-      await onSubmit(formData);
+      // Usar authService.register en lugar de userService.createUser
+      await authService.register(formData);
+      
       // Reset form
       setFormData({
         email: '',
@@ -36,6 +38,8 @@ export const UserModal = ({ isOpen, onClose, onSubmit }: UserModalProps) => {
         phone: '',
         department: '',
       });
+      
+      onSuccess(); // Recargar lista de usuarios
       onClose();
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Error al crear usuario');
@@ -80,7 +84,7 @@ export const UserModal = ({ isOpen, onClose, onSubmit }: UserModalProps) => {
             </div>
           )}
 
-          <div className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Nombre completo */}
               <div>
@@ -207,8 +211,7 @@ export const UserModal = ({ isOpen, onClose, onSubmit }: UserModalProps) => {
                 Cancelar
               </button>
               <button
-                type="button"
-                onClick={handleSubmit}
+                type="submit"
                 disabled={loading}
                 className="px-6 py-3 bg-gradient-to-r from-red-600 to-orange-500 text-white rounded-xl hover:shadow-xl transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
@@ -222,7 +225,7 @@ export const UserModal = ({ isOpen, onClose, onSubmit }: UserModalProps) => {
                 )}
               </button>
             </div>
-          </div>
+          </form>
         </div>
       </div>
     </div>

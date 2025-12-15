@@ -134,10 +134,51 @@ services:
     tty: true         # Permite ejecutar comandos en el contenedor  
     networks:
       - microservices-network
+  # MongoDB para Audit Service
+  mongodb:
+    image: mongo:7-jammy
+    container_name: mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin123
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - microservices-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Audit Service
+  audit-service:
+    build:
+      context: ./audit-service
+      dockerfile: Dockerfile
+    container_name: audit-service
+    env_file:
+      - ./audit-service/.env
+    environment:
+      - MONGODB_URL=mongodb://admin:admin123@mongodb:27017
+      - RABBITMQ_HOST=rabbitmq
+    ports:
+      - "8003:8003"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - microservices-network
+    restart: unless-stopped
 
 volumes:
   postgres_auth_data:
   postgres_user_data:
+  mongodb_data:
 
 networks:
   microservices-network:

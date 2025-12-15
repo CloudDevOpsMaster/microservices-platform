@@ -12,10 +12,13 @@ class Settings(BaseSettings):
     RABBITMQ_HOST: str = "localhost"
     RABBITMQ_PORT: int = 5672
     RABBITMQ_USER: str = "admin"
-    RABBITMQ_PASS: str = "admin123"
+    RABBITMQ_PASSWORD: str = "admin123"
     
-    # JWT
-    JWT_SECRET: str = "your-secret-key-change-in-production"
+    # Auth Service
+    AUTH_SERVICE_URL: str = "http://localhost:8001"
+    
+    # JWT - Must match Auth Service
+    JWT_SECRET: str
     JWT_ALGORITHM: str = "HS256"
     
     # App

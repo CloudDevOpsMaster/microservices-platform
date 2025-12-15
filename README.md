@@ -235,26 +235,32 @@ docker exec -it auth-service python scripts/create_first_admin.py
 # En Auth Service DB
 docker exec -it postgres psql -U admin -d auth_db
 
-INSERT INTO users (id, email, hashed_password, is_active) 
-VALUES (
-  'admin-001', 
-  'admin@toka.com',
-  '$2b$12$...', -- generar con bcrypt
-  true
-);
+INSERT INTO public.users
+(id, email, hashed_password, full_name, is_active, is_verified, "role", created_at, updated_at)
+VALUES('eb8d5e00-2cb4-4d93-b870-6d4c68695fb7', 'admin@toka.com', '$2a$12$/ra/8T75BNi5sLV22h9DkeeURWiS4012ng9Z3jDuLQ2WxyI6oTNcG', 'Super Admin', true, false, 'admin', '2025-12-13 16:29:43.035', '2025-12-13 16:29:43.035');
+
+INSERT INTO public.users
+(id, email, full_name, "role", is_active, is_verified, phone, department, created_at, updated_at)
+VALUES('eb8d5e00-2cb4-4d93-b870-6d4c68695fb7', 'admin@toka.com', 'Super Admin', 'admin', true, true, NULL, NULL, '2025-12-14 13:30:05.460', '2025-12-14 13:30:05.460');
+
 
 # En User Service DB
 docker exec -it postgres psql -U admin -d users_db
 
-INSERT INTO users (id, email, full_name, role, is_active, is_verified)
-VALUES (
-  'admin',
-  'admin@toka.com', 
-  'Super Admin',
-  'admin',
-  true,
-  true
+CREATE TABLE users (
+    id VARCHAR(255) PRIMARY KEY,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    full_name VARCHAR(255) NOT NULL,
+    role VARCHAR(50) NOT NULL DEFAULT 'user',
+    phone VARCHAR(50),
+    department VARCHAR(100),
+    is_active BOOLEAN DEFAULT TRUE,
+    is_verified BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+
 ```
 
 ## Opción 3: Endpoint especial (bootstrap)

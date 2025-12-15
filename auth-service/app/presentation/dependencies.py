@@ -30,7 +30,7 @@ def get_login_use_case() -> LoginUseCase:
         user_repository=user_repository,
         redis_client=_redis_client,
         rabbitmq_publisher=_rabbitmq_publisher,
-        jwt_secret=settings.JWT_SECRET_KEY,
+        jwt_secret=settings.JWT_SECRET,
         jwt_algorithm=settings.JWT_ALGORITHM,
         access_token_expire_minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES,
         refresh_token_expire_days=settings.REFRESH_TOKEN_EXPIRE_DAYS
@@ -44,7 +44,7 @@ def get_refresh_use_case() -> RefreshTokenUseCase:
     return RefreshTokenUseCase(
         user_repository=user_repository,
         redis_client=_redis_client,
-        jwt_secret=settings.JWT_SECRET_KEY,
+        jwt_secret=settings.JWT_SECRET,
         jwt_algorithm=settings.JWT_ALGORITHM,
         access_token_expire_minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
     )

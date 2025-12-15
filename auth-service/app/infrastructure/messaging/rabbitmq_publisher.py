@@ -33,7 +33,7 @@ class RabbitMQPublisher:
             
             # Declare exchange
             self.channel.exchange_declare(
-                exchange='auth.events',
+                exchange='user.events',
                 exchange_type='topic',
                 durable=True
             )
@@ -48,9 +48,9 @@ class RabbitMQPublisher:
             self.connection.close()
             logger.info("RabbitMQ connection closed")
     
-    async def publish(self, routing_key: str, message: Dict[Any, Any]) -> None:
+    def publish(self, routing_key: str, message: Dict[Any, Any]) -> None:
         """
-        Publish message to exchange.
+        Publish message to exchange (SYNCHRONOUS).
         
         Args:
             routing_key: Routing key for the message
@@ -61,7 +61,7 @@ class RabbitMQPublisher:
                 self.connect()
             
             self.channel.basic_publish(
-                exchange='auth.events',
+                exchange='user.events',
                 routing_key=routing_key,
                 body=json.dumps(message),
                 properties=pika.BasicProperties(
