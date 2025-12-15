@@ -1,0 +1,30 @@
+sequenceDiagram
+    participant U as Public User
+    participant A as Admin
+    participant AUTH as Auth Service
+    participant RMQ as RabbitMQ
+    participant USER as User Service
+
+    Note over U,USER: Flujo 1: Registro Público (/auth/register)
+    U->>AUTH: POST /auth/register<br/>{email, password, name}
+    AUTH->>AUTH: Hash password<br/>Create credentials<br/>Role: "user"
+    AUTH->>AUTH: Save to auth_db
+    AUTH->>RMQ: Publish: user.created event
+    AUTH->>U: 201 Created
+    RMQ->>USER: Consume: user.created
+    USER->>USER: Create profile in users_db
+    
+    Note over U,USER: Flujo 2: Creación Admin (/users POST)
+    A->>AUTH: POST /auth/login
+    AUTH->>A: JWT Token
+    A->>USER: POST /users + JWT<br/>{email, name, role: "admin"}
+    USER->>AUTH: Validate JWT
+    AUTH->>USER: JWT Valid ✓
+    USER->>USER: Create profile<br/>Custom role
+    USER->>USER: Save to users_db
+    USER->>RMQ: Publish: user.admin.created
+    RMQ->>AUTH: Consume event
+    AUTH->>AUTH: Create credentials<br/>in auth_db
+    USER->>A: 201 Created
+
+    Note over AUTH: Diferencias Clave:<br/>• /auth/register: Público, role fijo<br/>• /users POST: Requiere JWT, role custom

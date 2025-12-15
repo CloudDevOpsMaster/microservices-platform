@@ -1,0 +1,39 @@
+graph LR
+    subgraph AUTH["🔐 Security Context (Auth Service)"]
+        direction TB
+        A1[Entities:<br/>Credentials, Session, Token]
+        A2[Responsabilidades:<br/>¿Quién eres?<br/>¿Puedes acceder?]
+        A3[(auth_db)]
+    end
+
+    subgraph USER["👤 User Management Context (User Service)"]
+        direction TB
+        U1[Entities:<br/>User Profile, Role, Department]
+        U2[Responsabilidades:<br/>¿Qué datos tienes?<br/>CRUD perfiles]
+        U3[(users_db)]
+    end
+
+    subgraph AUDIT["📋 Audit Context (Audit Service)"]
+        direction TB
+        AU1[Entities:<br/>AuditLog, Event]
+        AU2[Responsabilidades:<br/>¿Qué pasó? ¿Cuándo?<br/>Log tracking]
+        AU3[(MongoDB)]
+    end
+
+    subgraph AI["🤖 AI/Knowledge Context (AI Service)"]
+        direction TB
+        AI1[Entities:<br/>Document, Query, Response]
+        AI2[Responsabilidades:<br/>RAG queries<br/>Semantic search]
+        AI3[(Qdrant)]
+    end
+
+    AUTH -->|Event: user.created| USER
+    USER -->|Event: user.updated| AUDIT
+    AUTH -->|Event: login.success| AUDIT
+    USER -.Query: validate_token.-> AUTH
+    AI -.Query: get_user_context.-> USER
+
+    style AUTH fill:#4CAF50,color:#000
+    style USER fill:#2196F3,color:#000
+    style AUDIT fill:#FF9800,color:#000
+    style AI fill:#9C27B0,color:#fff

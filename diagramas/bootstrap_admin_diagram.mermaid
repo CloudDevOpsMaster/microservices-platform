@@ -1,0 +1,44 @@
+graph TB
+    START[Sistema Nuevo<br/>Sin usuarios] --> DECISION{Método de<br/>Inicialización}
+    
+    DECISION -->|Opción 1| SCRIPT[Script Python<br/>create_first_admin.py]
+    DECISION -->|Opción 2| SQL[SQL Directo<br/>psql]
+    DECISION -->|Opción 3| BOOTSTRAP[Endpoint /bootstrap]
+    
+    SCRIPT --> SCRIPT1[Hash password]
+    SCRIPT1 --> SCRIPT2[Insert auth_db.users]
+    SCRIPT2 --> SCRIPT3[Insert users_db.users]
+    SCRIPT3 --> DONE1[Admin creado ✓]
+    
+    SQL --> SQL1[Connect to auth_db]
+    SQL1 --> SQL2[INSERT credentials<br/>role='admin']
+    SQL2 --> SQL3[Connect to users_db]
+    SQL3 --> SQL4[INSERT profile<br/>role='admin']
+    SQL4 --> DONE2[Admin creado ✓]
+    
+    BOOTSTRAP --> BOOT1[Check: users count = 0?]
+    BOOT1 -->|Yes| BOOT2[Create admin in auth_db]
+    BOOT1 -->|No| BOOT_ERROR[403 Sistema<br/>ya inicializado]
+    BOOT2 --> BOOT3[Publish user.created]
+    BOOT3 --> BOOT4[User Service sync]
+    BOOT4 --> BOOT5[Auto-disable endpoint]
+    BOOT5 --> DONE3[Admin creado ✓]
+    
+    DONE1 --> NEXT[Admin hace login]
+    DONE2 --> NEXT
+    DONE3 --> NEXT
+    
+    NEXT --> LOGIN[POST /auth/login]
+    LOGIN --> JWT[Obtiene JWT]
+    JWT --> CREATE[POST /users<br/>Crear más usuarios]
+    CREATE --> FLOW[Flujo normal<br/>del sistema]
+    
+    style START fill:#FFE0B2
+    style DECISION fill:#FFF9C4
+    style SCRIPT fill:#A5D6A7
+    style SQL fill:#90CAF9
+    style BOOTSTRAP fill:#CE93D8
+    style DONE1 fill:#C8E6C9
+    style DONE2 fill:#C8E6C9
+    style DONE3 fill:#C8E6C9
+    style FLOW fill:#4CAF50

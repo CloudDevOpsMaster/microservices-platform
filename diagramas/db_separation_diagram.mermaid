@@ -1,0 +1,26 @@
+graph TB
+    PUBLIC[Usuario Público] -->|POST /auth/register<br/>Sin autenticación| AUTH
+    ADMIN[Admin] -->|POST /users<br/>Con JWT| USER
+
+    subgraph AUTH_SVC["Auth Service :8001"]
+        AUTH[Auth API]
+        AUTH_DB[(auth_db<br/>PostgreSQL)]
+    end
+
+    subgraph USER_SVC["User Service :8002"]
+        USER[User API]
+        USER_DB[(users_db<br/>PostgreSQL)]
+    end
+
+    AUTH --> AUTH_DB
+    USER --> USER_DB
+    
+    AUTH -.Publish event.-> RMQ[RabbitMQ]
+    RMQ -.Consume.-> USER
+    USER -.Validate JWT.-> AUTH
+
+    style AUTH_SVC fill:#C8E6C9
+    style USER_SVC fill:#BBDEFB
+    style AUTH_DB fill:#4CAF50
+    style USER_DB fill:#2196F3
+    style RMQ fill:#FF5722

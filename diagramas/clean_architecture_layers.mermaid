@@ -1,0 +1,71 @@
+graph TB
+    subgraph "Presentation Layer"
+        ROUTES[API Routes<br/>FastAPI Controllers]
+        MIDDLEWARE[Middleware<br/>Auth, CORS, Logging]
+    end
+
+    subgraph "Application Layer"
+        UC_LOGIN[Login Use Case]
+        UC_REGISTER[Register Use Case]
+        UC_REFRESH[Refresh Token Use Case]
+        UC_CREATE[Create User Use Case]
+        DTO[DTOs<br/>Request/Response]
+    end
+
+    subgraph "Domain Layer"
+        ENTITIES[Entities<br/>User, Token]
+        INTERFACES[Interfaces<br/>IUserRepository<br/>ILLMProvider<br/>IVectorStore]
+        RULES[Business Rules<br/>Validation Logic]
+    end
+
+    subgraph "Infrastructure Layer"
+        REPO[Repository Impl<br/>PostgreSQL]
+        REDIS[Redis Client<br/>Cache & Sessions]
+        RMQ[RabbitMQ Publisher<br/>Event Messaging]
+        BEDROCK[Groq Client<br/>LLM Provider]
+        QDRANT[Qdrant Client<br/>Vector Store]
+    end
+
+    ROUTES --> UC_LOGIN
+    ROUTES --> UC_REGISTER
+    ROUTES --> UC_CREATE
+    MIDDLEWARE --> ROUTES
+
+    UC_LOGIN --> INTERFACES
+    UC_REGISTER --> INTERFACES
+    UC_REFRESH --> INTERFACES
+    UC_CREATE --> INTERFACES
+    
+    UC_LOGIN --> ENTITIES
+    UC_REGISTER --> ENTITIES
+    UC_CREATE --> ENTITIES
+    
+    INTERFACES -.Dependency Injection.-> REPO
+    INTERFACES -.Dependency Injection.-> REDIS
+    INTERFACES -.Dependency Injection.-> RMQ
+    INTERFACES -.Dependency Injection.-> BEDROCK
+    INTERFACES -.Dependency Injection.-> QDRANT
+
+    REPO --> ENTITIES
+    
+    DTO --> UC_LOGIN
+    DTO --> UC_REGISTER
+    DTO --> UC_CREATE
+
+    style ENTITIES fill:#4CAF50
+    style INTERFACES fill:#8BC34A
+    style RULES fill:#CDDC39
+    style UC_LOGIN fill:#2196F3
+    style UC_REGISTER fill:#2196F3
+    style UC_CREATE fill:#2196F3
+    style ROUTES fill:#FF9800
+    style REPO fill:#9C27B0
+    style REDIS fill:#E91E63
+    style RMQ fill:#FF5722
+    style BEDROCK fill:#673AB7
+    style QDRANT fill:#3F51B5
+
+    classDef domain fill:#C8E6C9
+    classDef application fill:#BBDEFB
+    classDef presentation fill:#FFE0B2
+    classDef infrastructure fill:#E1BEE7

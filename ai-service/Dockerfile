@@ -12,5 +12,6 @@ COPY app/ ./app/
 # Expose port
 EXPOSE 8004
 
+
 # Run application
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8004"]
