@@ -175,10 +175,42 @@ services:
       - microservices-network
     restart: unless-stopped
 
+  ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: Dockerfile
+    env_file:
+      - ./ai-service/.env  
+    ports:
+      - "8004:8004"
+    environment:
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - LOG_LEVEL=INFO
+    depends_on:
+      - qdrant
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+  qdrant:
+    image: qdrant/qdrant:v1.12.0
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+
 volumes:
   postgres_auth_data:
   postgres_user_data:
   mongodb_data:
+  qdrant_storage:
 
 networks:
   microservices-network:
