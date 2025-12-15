@@ -1,44 +1,42 @@
+"""Main application for User Service."""
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
 from app.presentation.routes import user_routes
-from app.infrastructure.database.database import Database
 from app.core.config import settings
 
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Application lifespan events."""
-    # Startup
-    db = Database(settings.DATABASE_URL)
-    await db.create_tables()
-    print("✅ Database tables created")
-    
-    yield
-    
-    # Shutdown
-    print("👋 Shutting down User Service")
-
-
 app = FastAPI(
-    title="User Service API",
-    version="1.0.0",
-    lifespan=lifespan
+    title="User Service",
+    description="User management microservice",
+    version="1.0.0"
 )
 
-# CORS
+# CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["http://localhost:5173", "http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Routes
+# Include routers
 app.include_router(user_routes.router)
-
 
 @app.get("/")
 async def root():
-    return {"message": "User Service API", "version": "1.0.0"}
+    """Root endpoint."""
+    return {
+        "service": "user-service",
+        "version": "1.0.0",
+        "status": "running"
+    }
+
+@app.get("/health")
+async def health():
+    """Health check endpoint."""
+    return {"status": "healthy"}
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8002)
